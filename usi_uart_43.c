@@ -1,25 +1,11 @@
-/*
- * usi_uart_45.c
- *
- * USIUARTX - USI as UART in half-duplex mode
- *
- * @created: 2015-03-23
- * @author: Neven Boyanov
- * reconfigured: 2016-08-16
- * revised: Mark Malmros @chimneypoint
- *
- * Original Source code available at: https://bitbucket.org/tinusaur/usiuartx
- * NOTE changed various registers & bit defs  to compile/run with 45
- */
-
-#define F_CPU 1000000UL		  // Sets up the default speed for delay.h
+#define F_CPU 1000000UL     // Sets up the default speed for delay.h
 
 #include <stdlib.h>
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "usi_uart_45.h"
+#include "usi_uart_43.h"
 
 // ============================================================================
 
@@ -35,8 +21,8 @@
 // ATtiny26  USI pins are DO : PB1   and DI : PB0
 // Attiny24a/44a/84a  USI pins are DO : PA5 (pin 8)  and DI : PA6 (pin 7)
 /*****************************************************************************/
-// ATtiny45  USI pins are 	DO: PB1 ( physical pin 5) :::PCINT1    (uart data out)
-//							D1: PB0 (physical pin 6) ::: PCINT0    (uart data in)
+// ATtiny45  USI pins are   DO: PB1 ( physical pin 5) :::PCINT1    (uart data out)
+//              D1: PB0 (physical pin 6) ::: PCINT0    (uart data in)
 
 //********** USI UART Defines **********//
 
@@ -82,18 +68,18 @@
 //********** Static Variables **********//
 
 // __no_init __regvar static unsigned char usiuartx_tx_data @ 15;   // Tells the compiler to store the byte to be transmitted in registry.
-static uint8_t usiuartx_tx_data;
+//static uint8_t usiuartx_tx_data;
 //static volatile unsigned char USI_UART_TxData;
 // see note in ../usiuartx/USI_UART.c
 // OR...
-//register uint8_t usiuartx_tx_data asm("r15");				// Tells the compiler to use Register 15 instead of SRAM
+register uint8_t usiuartx_tx_data asm("r15");       // Tells the compiler to use Register 15 instead of SRAM
 
-static uint8_t usiuartx_rx_buffer[USIUARTX_RX_BUFFER_SIZE];	// UART transmit buffer. Size is definable in the header file.
-static volatile uint8_t usiuartx_rx_head;	// Index pointing at the beginning (the head) of the transmit buffer.
-static volatile uint8_t usiuartx_rx_tail;	// Index pointing at the end (the tail) of the transmit buffer.
-static uint8_t usiuartx_tx_buffer[USIUARTX_TX_BUFFER_SIZE];	// UART receive buffer. Size is definable in the header file.
-static volatile uint8_t usiuartx_tx_head;	// Index pointing at the beginning (the head) of the receive buffer.
-static volatile uint8_t usiuartx_tx_tail;	// Index pointing at the end (the tail) of the receive buffer.
+static uint8_t usiuartx_rx_buffer[USIUARTX_RX_BUFFER_SIZE]; // UART transmit buffer. Size is definable in the header file.
+static volatile uint8_t usiuartx_rx_head; // Index pointing at the beginning (the head) of the transmit buffer.
+static volatile uint8_t usiuartx_rx_tail; // Index pointing at the end (the tail) of the transmit buffer.
+static uint8_t usiuartx_tx_buffer[USIUARTX_TX_BUFFER_SIZE]; // UART receive buffer. Size is definable in the header file.
+static volatile uint8_t usiuartx_tx_head; // Index pointing at the beginning (the head) of the receive buffer.
+static volatile uint8_t usiuartx_tx_tail; // Index pointing at the end (the tail) of the receive buffer.
 
 static volatile union USI_UART_status                           // Status byte holding flags.
 {
@@ -134,13 +120,13 @@ uint8_t usiuartx_bit_reverse( uint8_t x )
 // Initialize.
 void usiuartx_init(void)
 {
-	// Reset the buffers - that is to clear the indexes.
+  // Reset the buffers - that is to clear the indexes.
     usiuartx_rx_tail = 0;
     usiuartx_rx_head = 0;
     usiuartx_tx_tail = 0;
     usiuartx_tx_head = 0;
-	
-	// Initialisation for USI_UART receiver
+
+  // Initialisation for USI_UART receiver
     usiuartx_rx_init();
 }
 
@@ -149,38 +135,28 @@ void usiuartx_init(void)
 // Initialise USI for UART transmission.
 void usiuartx_tx_init(void)
 {
-    cli();	// __disable_interrupt();
-    TCNT0  = 0x00;	// Counter0 set to 0
-	GTCCR = (1  << TSM ) | ( 1<< PSR0 ); // see page 114 of 24A doc
-//	TCCR0B = (0<<CS02)|(0<<CS01)|(1<<CS00);  			      // Reset the pre-scaler and start Timer0.  these bit are for TIMER_PRESCALER 1
-	TCCR0B = (0<<CS02)|(1<<CS01)|(0<<CS00);  			      // Reset the pre-scaler and start Timer0.  these bitS are for TIMER_PRESCALER 8
-// changed from 	TCCR0B = (1<<PSR0)|(0<<CS02)|(0<<CS01)|(1<<CS00);
-// to reset the prescaler, another register is used in the attiny44a
-	GTCCR = (0 << TSM ); // see note on this reg above
-//	GTCCR =  (1 << PSR10); // presummably (?) this is the same as 1<<PSR0 in the above register (for the 26)!!............(1 << TSM) |
-    TIFR   = (1<<TOV0);                                       // Clear Timer0 OVF interrupt flag.
-//   TIFR ... change mk
-    TIMSK |= (1<<TOIE0);                                      // Enable Timer0 OVF interrupt.
-//   TIMSK ... change mkm
-    USICR  = (0<<USISIE)|(1<<USIOIE)|                         // Enable USI Counter OVF interrupt.
-             (0<<USIWM1)|(1<<USIWM0)|                         // Select Three Wire mode.
-             (0<<USICS1)|(1<<USICS0)|(0<<USICLK)|             // Select Timer0 OVER as USI Clock source. SEE PAGE 6 OF AVR307 doc
-             (0<<USITC);
+  cli();  // __disable_interrupt();
+  TCNT0  = 0x00;  // Counter0 set to 0
+  GTCCR = (1  << TSM ) | ( 1<< PSR10 ); // see page 114 of 24A doc
+  TCCR0B = (0<<CS02)|(1<<CS01)|(0<<CS00);             // Reset the pre-scaler and start Timer0.  these bitS are for TIMER_PRESCALER 8
+  GTCCR = (0 << TSM ); // see note on this reg above
+  TIFR0   = (1<<TOV0);                                       // Clear Timer0 OVF interrupt flag.
+  TIMSK0 |= (1<<TOIE0);                                      // Enable Timer0 OVF interrupt.
+  USICR  = (0<<USISIE)|(1<<USIOIE)|                         // Enable USI Counter OVF interrupt.
+           (0<<USIWM1)|(1<<USIWM0)|                         // Select Three Wire mode.
+           (0<<USICS1)|(1<<USICS0)|(0<<USICLK)|             // Select Timer0 OVER as USI Clock source. SEE PAGE 6 OF AVR307 doc
+           (0<<USITC);
 
-    USIDR  = 0xFF;                                            // Make sure MSB is '1' before enabling USI_DO.
-    USISR  = 0xF0 |                                           // Clear all USI interrupt flags.
-//	sets last or upper 4 bits to 1's and lower 4 bits to 0's
-//	try clearing ALL bits? i.e 0x00 ???
+  USIDR  = 0xFF;                                            // Make sure MSB is '1' before enabling USI_DO.
+  USISR  = 0xF0 |                                           // Clear all USI interrupt flags.
+//  sets last or upper 4 bits to 1's and lower 4 bits to 0's
+//  try clearing ALL bits? i.e 0x00 ???
              0x0F;                                            // Pre-load the USI counter to generate interrupt at first USI clock.
-// same register in 26 and 24 ...
-    DDRB  |= (1<<PB1);                                        // Configure USI_DO as output.
-//    DDRA  |= (1<<PA5);                                        // Configure USI_DO as output.
-/* the pin configuration for the 44a/84a has PA5 (pin 8) as USI_DO and ...
- * PA6 (pin 7) as USI_DI   since we are using the USI ... adjust accordingly!
-*/
+
+    DDRB  |= (1<<PB5);                                        // Configure USI_DO as output.
     USI_UART_status.ongoing_Transmission_From_Buffer = TRUE;
 
-    sei();	// __enable_interrupt();
+    sei();  // __enable_interrupt();
 }
 
 #define USIUARTX_TX_ISEMPTY() (usiuartx_tx_head == usiuartx_tx_tail)
@@ -189,7 +165,7 @@ void usiuartx_tx_init(void)
 // Check if there is data in the transmit buffer.
 uint8_t usiuartx_tx_has_data(void)
 {
-    return (USIUARTX_TX_HASDATA());	// Return 0 (FALSE) if the transmit buffer is empty.
+    return (USIUARTX_TX_HASDATA()); // Return 0 (FALSE) if the transmit buffer is empty.
     // return (usiuartx_tx_head != usiuartx_tx_tail);
 }
 
@@ -197,27 +173,27 @@ uint8_t usiuartx_tx_has_data(void)
 // Initiates the transmission routines if not already started.
 void usiuartx_tx_byte(uint8_t data)
 {
-	// DEBUGGING_CHAR(data);
+  // DEBUGGING_CHAR(data);
     uint8_t tmp_tx_head;
-    tmp_tx_head = ( usiuartx_tx_head + 1 ) & USIUARTX_TX_BUFFER_MASK;	// Calculate buffer index.
-	// DEBUGGING_VARU("tmp_tx_head", tmp_tx_head);
-    while ( tmp_tx_head == usiuartx_tx_tail );	// Wait for free space in buffer.
-    usiuartx_tx_buffer[tmp_tx_head] = usiuartx_bit_reverse(data);	// Reverse the order of the bits in the data byte and store data in buffer.
-    usiuartx_tx_head = tmp_tx_head;	// Store new index.
-    if ( !USI_UART_status.ongoing_Transmission_From_Buffer )	// Start transmission from buffer (if not already started).
+    tmp_tx_head = ( usiuartx_tx_head + 1 ) & USIUARTX_TX_BUFFER_MASK; // Calculate buffer index.
+  // DEBUGGING_VARU("tmp_tx_head", tmp_tx_head);
+    while ( tmp_tx_head == usiuartx_tx_tail );  // Wait for free space in buffer.
+    usiuartx_tx_buffer[tmp_tx_head] = usiuartx_bit_reverse(data); // Reverse the order of the bits in the data byte and store data in buffer.
+    usiuartx_tx_head = tmp_tx_head; // Store new index.
+    if ( !USI_UART_status.ongoing_Transmission_From_Buffer )  // Start transmission from buffer (if not already started).
     {
-        while ( USI_UART_status.ongoing_Reception_Of_Package );	// Wait for USI to finish reading incoming data.
+        while ( USI_UART_status.ongoing_Reception_Of_Package ); // Wait for USI to finish reading incoming data.
         usiuartx_tx_init();
     }
 }
 
 void usiuartx_tx_string(char *text)
 {
-	// DEBUGGING_STRINGLN(text);
-	while (*text)
-	{
-		usiuartx_tx_byte(*text++);
-	}
+  // DEBUGGING_STRINGLN(text);
+  while (*text)
+  {
+    usiuartx_tx_byte(*text++);
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -228,20 +204,13 @@ void usiuartx_tx_string(char *text)
 void usiuartx_rx_init(void)
 {
 
-    PORTB |=   (1<<PB1)|(1<<PB0);                           // Enable pull up on USI DO, DI pins. (USCK/PB2 and PB3 not needed)
-    DDRB  &= ~((1<<PB1)|(1<<PB0));                          // Set USI DI, DO pins as inputs. (USCK/PB2 and PB3 not needed)
-/*
-    PORTA |=   (1<<PA6)|(1<<PA5);                           // Enable pull up on USI DO, DI pins.
-    DDRA  &= ~((1<<PA6)|(1<<PA5));                          // Set USI DI, DO pins as inputs.
-// change mkm  DO is PA5 , DI is PA6
-*/
+    PORTB |=   (1<<PB5)|(1<<PB4);                           // Enable pull up on USI DO, DI pins.
+    DDRB  &= ~((1<<PB4)|(1<<PB5));                          // Set USI DI, DO pins as inputs.
     USICR  =  0;                                            // Disable USI.
-    GIFR   =  (1<<PCIF);                                    // Clear pin change interrupt flag.
-//                PCIF ... change mkm  OK
-    GIMSK |=  (1<<PCIE);                                    // Enable pin change interrupt for PCINT[5:0]
-//................PCIE ... change mkm  OK
-    PCMSK |=  (1<<PCINT0);									// Pin Change Mask Register, enable for PCINT0/PB0
-//   PCMSK0 |=  (1<<PCINT0); ... change mkm
+    GIFR   =  (1<<PCIF0);                                    // Clear pin change interrupt flag.
+    GIMSK |=  (1<<PCIE0);                                    // Enable pin change interrupt for PCINT[5:0]
+    PCMSK0 |=  (1<<PCINT0);                  // Pin Change Mask Register, enable for PCINT0/PB0
+
 }
 
 #define USIUARTX_RX_ISEMPTY() (usiuartx_rx_head == usiuartx_rx_tail)
@@ -251,7 +220,7 @@ void usiuartx_rx_init(void)
 uint8_t usiuartx_rx_has_data(void)
 {
     // return (usiuartx_rx_head != usiuartx_rx_tail);
-    return (USIUARTX_RX_HASDATA());	// Return 0 (FALSE) if the receive buffer is empty.
+    return (USIUARTX_RX_HASDATA()); // Return 0 (FALSE) if the receive buffer is empty.
 }
 
 // Returns a byte from the receive buffer. Waits if buffer is empty.
@@ -259,10 +228,10 @@ uint8_t usiuartx_rx_byte(void)
 {
     uint8_t tmp_rx_tail;
     // while (usiuartx_rx_head == usiuartx_rx_tail);
-    while (USIUARTX_RX_ISEMPTY());	// Wait for incoming data
-    tmp_rx_tail = ( usiuartx_rx_tail + 1 ) & USIUARTX_RX_BUFFER_MASK;	// Calculate buffer index
-    usiuartx_rx_tail = tmp_rx_tail;	// Store new index
-    return usiuartx_bit_reverse(usiuartx_rx_buffer[tmp_rx_tail]);	// Reverse the order of the bits in the data byte before it returns data from the buffer.
+    while (USIUARTX_RX_ISEMPTY());  // Wait for incoming data
+    tmp_rx_tail = ( usiuartx_rx_tail + 1 ) & USIUARTX_RX_BUFFER_MASK; // Calculate buffer index
+    usiuartx_rx_tail = tmp_rx_tail; // Store new index
+    return usiuartx_bit_reverse(usiuartx_rx_buffer[tmp_rx_tail]); // Reverse the order of the bits in the data byte before it returns data from the buffer.
 }
 
 // ----------------------------------------------------------------------------
@@ -274,29 +243,18 @@ uint8_t usiuartx_rx_byte(void)
 // #pragma vector=IO_PINS_vect
 // __interrupt void IO_Pin_Change_ISR(void)
 ISR(PCINT0_vect)
-// change from  ISR(SIG_PIN_CHANGE)  mkm
 {
-    if (!( PINB & (1<<PB0) ))                                     // If the USI DI pin is low, then it is likely that it - mkm
-
-/*    if (!( PINA & (1<<PA5) ))                                     // If the USI DI pin is low, then it is likely that it
-*/
+    if (!( PINB & (1<<PB4) ))                                     // If the USI DI pin is low, then it is likely that it - mkm
     {                                                             // was this pin that generated the pin change interrupt.
         TCNT0  = INTERRUPT_STARTUP_DELAY + INITIAL_TIMER0_SEED;   // Plant TIMER0 seed to match baudrate (including interrupt start up time.).
+        GTCCR = (1  << TSM ) | ( 1<< PSR10 );
+        TCCR0B = (0<<CS02)|(1<<CS01)|(0<<CS00);             // Reset the pre-scaler and start Timer0.  these bitS are for TIMER_PRESCALER 8
+        // to reset the prescaler, another register is used in the attiny44a
+        GTCCR = (0 << TSM ); // see note on this reg above
 
-/*        TCCR0B  =(0<<CS02)|(0<<CS01)|(1<<CS00);        // Reset the pre-scaler and start Timer0.
-// change mkm         TCCR0B  = (1<<PSR0)|(0<<CS02)|(0<<CS01)|(1<<CS00);
-        GTCCR =  (1 << PSR10); // presummably (?) this is the same as 1<<PSR0 in the above register!! BUT the TSM bit ??? (1 << TSM) |
-*/
-		GTCCR = (1  << TSM ) | ( 1<< PSR0 ); // see page 114 of 24A doc also p 77 of 45 doc
-//		TCCR0B = (0<<CS02)|(0<<CS01)|(1<<CS00);  			      // Reset the pre-scaler and start Timer0.
-// changed from 	TCCR0B = (1<<PSR0)|(0<<CS02)|(0<<CS01)|(1<<CS00);
-	TCCR0B = (0<<CS02)|(1<<CS01)|(0<<CS00);  			      // Reset the pre-scaler and start Timer0.  these bitS are for TIMER_PRESCALER 8
-// to reset the prescaler, another register is used in the attiny44a
-		GTCCR = (0 << TSM ); // see note on this reg above
-//	GTCCR =  (1 << PSR10); // presummably (?) this is the same as 1<<PSR0 in the above register (for the 26)!!............(1 << TSM) |
-        TIFR  = (1<<TOV0);                                       // Clear Timer0 OVF interrupt flag. CHANGE MKM
-        TIMSK |= (1<<TOIE0);                                      // Enable Timer0 OVF interrupt.
-//CHANGE MKM
+        TIFR1  = (1<<TOV0);                                       // Clear Timer0 OVF interrupt flag. CHANGE MKM
+        TIMSK1 |= (1<<TOIE0);                                      // Enable Timer0 OVF interrupt.
+
         USICR  = (0<<USISIE)|(1<<USIOIE)|                         // Enable USI Counter OVF interrupt.
                  (0<<USIWM1)|(1<<USIWM0)|                         // Select Three Wire mode.
                  (0<<USICS1)|(1<<USICS0)|(0<<USICLK)|             // Select Timer0 OVER as USI Clock source.
@@ -305,7 +263,7 @@ ISR(PCINT0_vect)
         USISR  = 0xF0 |                                           // Clear all USI interrupt flags.
                  USI_COUNTER_SEED_RECEIVE;                        // Preload the USI counter to generate interrupt.
 
-        GIMSK &=  ~(1<<PCIE);                                     // Disable pin change interrupt for PCINT[5:0] ... change mkm
+        GIMSK &=  ~(1<<PCIE0);                                     // Disable pin change interrupt for PCINT[5:0] ... change mkm
 
         USI_UART_status.ongoing_Reception_Of_Package = TRUE;
     }
@@ -317,7 +275,7 @@ ISR(PCINT0_vect)
 // __interrupt void USI_Counter_Overflow_ISR(void)
 ISR(USI_OVF_vect) // change mkm
 {
-	uint8_t tmp_tx_tail;
+  uint8_t tmp_tx_tail;
     uint8_t tmp_rx_head;
 
     // Check if we are running in Transmit mode.
@@ -362,9 +320,9 @@ ISR(USI_OVF_vect) // change mkm
 // change mkm  DO is PA5 , DI is PA6
 */
                 USICR  =  0;                                            // Disable USI.
-                GIFR   =  (1<<PCIF);                                    // Clear pin change interrupt flag. change mkm
-                GIMSK |=  (1<<PCIE);                                    // Enable pin change interrupt for PCINT[5:0] ... change mk 
-                PCMSK |=  (1<<PCINT0);									// Pin Change Mask Register, enable for PCINT0/PB0
+                GIFR   =  (1<<PCIF0);                                    // Clear pin change interrupt flag. change mkm
+                GIMSK |=  (1<<PCIE0);                                    // Enable pin change interrupt for PCINT[5:0] ... change mk
+                PCMSK1 |=  (1<<4);                  // Pin Change Mask Register, enable for PCINT12/PB4
             }
         }
     }
@@ -386,7 +344,7 @@ ISR(USI_OVF_vect) // change mkm
         }                                                               // The bit reversing is moved to the application section to save time within the interrupt.
 
         TCCR0B  = (0<<CS02)|(0<<CS01)|(0<<CS00);                // Stop Timer0.
- 
+
         PORTB |=   (1<<PB1)|(1<<PB0);                           // Enable pull up on USI DO, DI pins. (USCK/PB2 and PB3 not needed)
         DDRB  &= ~((1<<PB1)|(1<<PB0));                          // Set USI DI, DO pins as inputs. (USCK/PB2 and PB3 not needed)
 
@@ -395,9 +353,9 @@ ISR(USI_OVF_vect) // change mkm
 // change mkm  DO is PA5 , DI is PA6
 */
         USICR  =  0;                                            // Disable USI.
-        GIFR   =  (1<<PCIF);                                    // Clear pin change interrupt flag.
-        GIMSK |=  (1<<PCIE);                                    // Enable pin change interrupt for PCINT[7:0]
-        PCMSK |=  (1<<PCINT0);									// Pin Change Mask Register, enable for PCINT5/PB5 ... change mkm
+        GIFR   =  (1<<PCIF0);                                    // Clear pin change interrupt flag.
+        GIMSK |=  (1<<PCIE0);                                    // Enable pin change interrupt for PCINT[7:0]
+        PCMSK1 |=  (1<<4);                  // Pin Change Mask Register, enable for PCINT12/PB4
     }
 
 }

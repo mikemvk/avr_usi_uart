@@ -1,7 +1,7 @@
 # avr_usi_uart
-A USI software UART for the ATtiny 25/45/85 
+A USI software UART for the ATtiny43U
 
-Revised and edited to compile with avr-gcc for the ATtiny45 from https://bitbucket.org/tinusaur/usiuartx
-The original was based on reference to "AVR307" Half Duplex UART Using the USI Module on tinyAVR and megaAVR devices - application note.
-This version is configured for 2400 baud at a system clock of 1mhz.
-The code should be easily adapted to any avr device with USI.
+This project forked from forked from malmros/avr_usi_uart and adopted to ATTiny43U.
+Used PB4 (pin 5) as DI (Rx), PB5 (pin 6) as DO (Tx).
+
+Tested on avr-gcc, only Tx and only on speed 9600!

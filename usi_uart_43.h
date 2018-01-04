@@ -1,18 +1,5 @@
-/*
- * usi_uart_45.h
- *
- * USIUARTX - USI as UART in half-duplex mode
- *
- * @created: 2015-03-23
- * @author: Neven Boyanov
- * 2016-08-16
- * revised: Mark Malmros @chimneypoint
- * Original Source code available at: https://bitbucket.org/tinusaur/usiuartx
- *
- */
-
-#ifndef _USI_UART_45_H
-#define _USI_UART_45_H
+#ifndef _USI_UART_43_H
+#define _USI_UART_43_H
 
 // ============================================================================
 
@@ -40,10 +27,9 @@
 //#define BAUDRATE  28800
 //#define BAUDRATE  19200
 //#define BAUDRATE  14400
-//#define BAUDRATE   9600
-//
+#define BAUDRATE   9600
 //#define BAUDRATE   4800
-#define BAUDRATE   2400
+//#define BAUDRATE   2400
 //#define BAUDRATE     1200
 
 /* thi macro is only used to determine the TIMERO_SEED 
